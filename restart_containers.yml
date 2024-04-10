@@ -1,0 +1,55 @@
+---
+- hosts: localhost
+  vars:
+    - time_file: restart_containers_time.txt
+  vars_files:
+    - ./restart_containers_var.yml
+
+  tasks:
+  - name: Set block run script
+    set_fact: allow_run=false
+  - name: Check that the time_file exists
+    stat:
+      path: "{{ time_file }}"
+    register: stat_result
+  - name: Allow run script, if time_file is not exists
+    set_fact: allow_run=true
+    when: not stat_result.stat.exists
+
+  - name: Get current date
+    ansible.builtin.shell: date +%Y%m%d%H%M%S
+    register: date_result
+  - name: Set date_str
+    set_fact:
+      date_str: "{{date_result.stdout}}"
+
+  - block:
+    - name: Read date_previos_str from time_file
+      set_fact: date_previos_str="{{ lookup('ansible.builtin.file', time_file) }}"
+    - name: How long I don't need anybody
+      set_fact: sleeping_time="{{ (date_str|int-date_previos_str|int) }}"
+    - name: How many need to sleep
+      set_fact: need_to_sleep="{{ (timeout|int - sleeping_time|int) }}"
+    - name: Stop execution very often
+      ansible.builtin.fail:
+        msg: "I need to sleep {{ need_to_sleep }} seconds more."
+      when: need_to_sleep|int > 0
+    when: not allow_run
+
+  - name: Write date_str to time_file
+    copy:
+      content: "{{ date_str }}"
+      dest: "{{ time_file }}"
+
+  - name: Stop running containers
+    docker_container:
+      name: "{{ item }}"
+      state: stopped
+    loop: "{{ containers }}"
+  - name: Start running containers
+    docker_container:
+      name: "{{ item }}"
+      state: started
+    loop: "{{ containers }}"
+
+...
