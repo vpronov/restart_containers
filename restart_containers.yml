@@ -41,15 +41,24 @@
       content: "{{ date_str }}"
       dest: "{{ time_file }}"
 
-  - name: Stop running containers
+  - name: Get infos on container
+    docker_container_info:
+      name: "{{ containers[0] }}"
+    register: result
+  - name: Restart running containers
     docker_container:
       name: "{{ item }}"
-      state: stopped
+      restart: true
     loop: "{{ containers }}"
-  - name: Start running containers
-    docker_container:
-      name: "{{ item }}"
-      state: started
-    loop: "{{ containers }}"
+
+#  - name: Stop running containers
+#    docker_container:
+#      name: "{{ item }}"
+#      state: stopped
+#    loop: "{{ containers }}"
+#  - name: Start running containers
+#    ansible.builtin.shell: |
+#      cd "{{ result.container.Config.Labels["com.docker.compose.project.working_dir"] }}"
+#      docker-compose up -d
 
 ...
